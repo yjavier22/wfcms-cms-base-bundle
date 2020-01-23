@@ -1,0 +1,416 @@
+<?php
+
+/* NOT USED ANYMORE 
+Fixtures for articles/images/audio are almost never needed
+*/
+
+namespace Wf\Bundle\CmsBaseBundle\DataFixtures\ORM;
+
+use Wf\Bundle\CmsBaseBundle\Entity\Page;
+use Wf\Bundle\CommonBundle\Util\Lipsum;
+use Doctrine\Common\DataFixtures\AbstractFixture;
+use Symfony\Component\DependencyInjection\ContainerAwareInterface;
+use Symfony\Component\DependencyInjection\ContainerInterface;
+use Doctrine\Common\Persistence\ObjectManager;
+use Doctrine\Common\DataFixtures\FixtureInterface;
+use Doctrine\Common\DataFixtures\OrderedFixtureInterface;
+use Wf\Bundle\CommonBundle\Util\ClassUtil;
+use Symfony\Component\Finder\Finder;
+
+class WfCmsBaseLoadContent
+    extends AbstractFixture
+    implements FixtureInterface, OrderedFixtureInterface, ContainerAwareInterface
+{
+    protected $itemsPerCategory;
+    protected $editionsNo;
+    protected $authors = 0;
+
+    /**
+     * @var ContainerInterface
+     */
+    protected $container;
+
+    /**
+     *
+     * @var Doctrine\ORM\EntityManager
+     */
+    protected $em;
+
+    protected $editorTitleModules = array(
+        'supra' => 'wfed/title/supra',
+        'title' => 'wfed/title/title',
+    );
+
+    public function __construct()
+    {
+    }
+
+    public function getCategoriesData()
+    {
+        $titles = 'Capa/Pais/Rio/Economia/Mundo/Esportes/Cultura';
+        $titlesArray = explode('/', $titles);
+
+        $ret = array();
+        foreach ($titlesArray as $title) {
+            $ret[] = array(
+                    'title' => $title,
+                    'description' => $title,
+                    );
+        }
+
+        //$ret = array_slice($ret, 0, 1);
+
+        return $ret;
+    }
+
+    public function getItemsData($category)
+    {
+        static $ccount = 0;
+
+        $itemsNo = $this->itemsPerCategory;
+        if ($ccount == 0) {
+            $itemsNo = $this->itemsPerCategory * 3;
+        }
+        $ccount++;
+
+        $ret = array();
+        for ($i = 0; $i < $itemsNo; $i++) {
+            $paragraphs = array();
+            for ($j = 0; $j < rand(2, 5); $j++) {
+                $paragraphs[] = Lipsum::getText(100);
+            }
+
+            $ret[] = array(
+                'supra' => Lipsum::getTitle(3),
+                'title' => Lipsum::getTitle(10),
+                'description' => Lipsum::getHTML(100),
+                'paragraphs' => $paragraphs,
+                'shortDescription' => Lipsum::getHTML(20),
+                'idx' => $i,
+                );
+        }
+
+        return $ret;
+    }
+
+    protected function setupCategory(&$category, $categoryData)
+    {
+    }
+
+    protected function setupPage(&$page, $itemData)
+    {
+    }
+
+    protected function setupPageModules(&$page, $itemData)
+    {
+        $pageModules = array();
+
+        $pageModules[] = $this->addTextPageModule($page, '#content .supra', 'wfed/title/supra', $itemData['supra'], 'h2');
+        $pageModules[] = $this->addTextPageModule($page, '#content .title', 'wfed/title/page_title', $itemData['title'], 'h1');
+        $pageModules[] = $this->addImagePageModule($page, '#content .image-text-author');
+
+        foreach ($itemData['paragraphs'] as $k=>$paragraph) {
+            $pageModules[] = $this->addTextPageModule($page, '#content .article-main', 'wfed/body_text/paragraph', $paragraph, 'p');
+        }
+
+        return $pageModules;
+    }
+
+    protected function addImagePageModule($page, $selector)
+    {
+        $img = $this->getReference('image-' . (mt_rand(1, $this->images) - 1));
+        $moduleId = 'admin/article/image/image_text_author';
+        $moduleJSON = '{"moduleList":[{"filter":"article_image_text_author"},{"containerClass":"description-image-article","toolbarPosition":"none"},{"containerClass":"author-image-article","toolbarPosition":"none"}],"collection":[{"filter":"article_image_text_author","position":"0","moduleId":"wfed\/image\/simple","packageId":"wfed\/image","data":{"image":{"id":"194","slug":"aliquam-arcu-enim","title":"Aliquam Arcu Enim","image_name":"5063f3144083b.jpg","src":"uploads\/image\/5063f3144083b.jpg"}},"settings":{"border":"0"}},{"moduleId":"wfed\/body_text\/block","packageId":"wfed\/body_text","data":{"content":"Type something here"},"position":"1"},{"moduleId":"wfed\/body_text\/block","packageId":"wfed\/body_text","data":{"content":"Type something here"},"position":"2"}]}';
+
+        $dataArray = json_decode($moduleJSON);
+        $dataArray->collection[0]->data->image->id = $img->getId();
+        $html = sprintf('<div class="homepage-ita-comp image-article img-in-content"><div class="image wf-module" style="min-height: 20px; min-width: 20px; background-image: none; background-position: initial initial; background-repeat: initial initial;"><img
+            src="/files/article_image_text_author/uploads/image/%s" style="opacity: 1;"></div><div class="description-image-article"><div class="wf-module" >Type something here</div></div><div class="author-image-article"><div class="wf-module" >Type something here</div></div></div>', $img->getImageName());
+
+        return $this->addPageModule($page, $selector, $moduleId, $dataArray, $html);
+    }
+
+    protected function addTextPageModule($page, $selector, $moduleId, $text, $tag = 'p', $position = null)
+    {
+        $dataArray = array('content' => $text);
+        $html = sprintf('<p>%s</p>', $text);
+        return $this->addPageModule($page, $selector, $moduleId, $dataArray, $html, $position);
+    }
+
+    protected function addPageModule($page, $selector, $moduleId, $dataArray, $html, $position = null)
+    {
+        static $positions = array();
+
+        if (is_null($position)) {
+            if (!isset($positions[$selector])) {
+                $positions[$selector] = 0;
+            }
+
+            $position = $positions[$selector];
+            $positions[$selector]++;
+        }
+
+        $pageModule = array(
+            'moduleId' => $moduleId,
+            'selector' => $selector,
+            'data' => $dataArray,
+            'position' => $position,
+            'html' => $html,
+        );
+
+        return $pageModule;
+    }
+
+    protected function setupItem(&$item, $itemData)
+    {
+        static $i;
+        if ($i % 2) {
+            $item->setPublished(true);
+        }
+
+        $item->setCreatedAt(new \DateTime('' . $itemData['idx'] . ' hours ago'));
+        $item->setFirstTitle($itemData['supra']);
+        $item->setShortDescription($itemData['shortDescription']);
+
+        $i++;
+    }
+
+    protected function postFlush()
+    {
+        foreach ($this->categories as $category) {
+            $this->em->persist($category);
+        }
+
+        $this->em->flush();
+    }
+
+    public function setContainer(ContainerInterface $container = null)
+    {
+        $this->container = $container;
+        $this->itemsPerCategory = $this->container->getParameter('wf_cms.fixtures.articles');
+        $this->editionsNo = $this->container->getParameter('wf_cms.fixtures.editions');
+        if (empty($this->editionsNo) || !is_numeric($this->editionsNo)) {
+            $this->editionsNo = 1;
+        }
+    }
+
+    function addTags($entity, $extraTags = array()) {
+        $tagClass = $this->container->getParameter('wf_cms.entity.tag.class');
+        $tagRepository = $this->em->getRepository($tagClass);
+        $tags = preg_split('/[^a-z]+/', $entity->getTitle());
+        $tags = array_filter($tags);
+        $tags = array_merge($extraTags, $tags);
+        $tags = array_unique($tags);
+        foreach($tags as $tag) {
+            if (strlen($tag) < 3) {
+                continue;
+            }
+            /* @var $te Wf\Bundle\CmsBaseBundle\Entity\Tag */
+            if (($te = $tagRepository->findOneByTitle($tag))) {
+            } else {
+                $te = new $tagClass;
+                $te->setTitle($tag);
+                $this->em->persist($te);
+            }
+            $entity->addTag($te);
+        }
+    }
+
+    function load(ObjectManager $em)
+    {
+        return;
+        if ($this->hasReference('wfcms-content-loaded')) {
+            return;
+        }
+
+        if (getenv('SF_HOST')) {
+            $this->container->get('router')->getContext()->setHost(getenv('SF_HOST'));
+        }
+        $this->em = $em;
+        $this->categories = array();
+        $this->items = array();
+
+        $this->categoryClass = $this->container->getParameter('wf_cms.entity.category.class');
+        $pageArticleClass = $this->container->getParameter('wf_cms.entity.page_article.class');
+        $imageClass = $this->container->getParameter('wf_cms.entity.image.class');
+        $videoClass = $this->container->getParameter('wf_cms.entity.video.class');
+        $audioClass = $this->container->getParameter('wf_cms.entity.audio.class');
+
+        $pageRepository = $this->container->get('wf_cms.repository.page');
+        $pageManager = $this->container->get('wf_cms.page_manager');
+
+        $positions = array();
+        $categoriesData = $this->getCategoriesData();
+
+//        $authorSamplesFolder = new DirectoryIterator($this->get('wf_cms.samples.folder'));
+        $authorSamplesFolder = new Finder();
+        $authorSamplesFolder
+                ->name('/^author.*?\.png$/i')
+                ->in($this->container->getParameter('wf_cms.samples.folder'))
+                ->depth(0);
+        /* @var $file \SplFileInfo */
+        $this->authors = 0;
+        foreach($authorSamplesFolder as $file) {
+            $authorImage = new $imageClass();
+            $authorImage->setImage(Lipsum::getImage($file->getRealPath()));
+            $authorImage->setTitle(Lipsum::getTitle(3));
+            $this->addTags($authorImage, array('author'));
+            $em->persist($authorImage);
+            $this->addReference('author-' . $this->authors, $authorImage);
+            $this->authors++;
+        }
+
+        //$this->images = $this->videos = $this->audios = count($categoriesData) * $this->editionsNo * $this->itemsPerCategory;
+        $this->images = $this->videos = $this->audios = $this->editionsNo * $this->itemsPerCategory;
+        //first, add the images and flush, their ID is needed in the module
+        for ($i = 0; $i < $this->images; $i++) {
+            $titlePrefix = '';
+            if ($i % 2) {
+                $titlePrefix = 'Test ';
+            } else {
+                $titlePrefix = 'Page ';
+            }
+            $image = new $imageClass;
+            $image->setImage(Lipsum::getImage());
+            $image->setTitle($titlePrefix . Lipsum::getTitle(3));
+            $this->addTags($image);
+            $em->persist($image);
+            $this->addReference('image-' . $i, $image);
+
+            $video = new $videoClass;
+            $video->setTitle(Lipsum::getTitle(3));
+            $video->setThumb(Lipsum::getImage());
+            $video->setVideo(Lipsum::getVideo());
+            $this->addTags($video);
+            $em->persist($video);
+            $this->addReference('video-' . $i, $video);
+
+            $audio = new $audioClass;
+            $audio->setTitle(Lipsum::getTitle(3));
+            $audio->setDuration(26);
+            $audio->setAudio(Lipsum::getAudio());
+            $this->addTags($audio);
+            $em->persist($audio);
+            $this->addReference('audio-' . $i, $audio);
+        }
+        $em->flush();
+
+        for ($i = 0; $i < $this->images; $i++) {
+            //refresh the assets - this refreshes the file property from the tmp to the uploaded dir
+            $image = $this->getReference('image-' . $i);
+            $em->refresh($image);
+            $video = $this->getReference('video-' . $i);
+            $em->refresh($video);
+            $audio = $this->getReference('audio-' . $i);
+            $em->refresh($audio);
+        }
+
+        $pagesNo = 0;
+        foreach ($categoriesData as $categoryIdx => $categoryData) {
+            $topCategory = $this->addCategory($categoryData);
+            $this->addReference('category-' . $categoryIdx, $topCategory);
+            $categories = $this->setupCategory($topCategory, $categoryData);
+
+            $editions = $this->getEditions();
+            $mainLoops = count($editions);
+            if (!$mainLoops) {
+                $mainLoops = 1;
+            }
+
+            for ($i = 0; $i < $mainLoops; $i++) {
+                $edition = null;
+                if (isset($editions[$i])) {
+                    $edition = $editions[$i];
+                }
+
+                foreach($categories as $category) {
+                    foreach ($this->getItemsData($category) as $k => $itemData) {
+                        /* @var $page Page */
+                        $page = $pageManager->getNewPageArticle();
+
+                        if (!empty($edition)) {
+                            $page->setEdition($edition);
+
+                            if (!isset($positions[$edition->getId()])) {
+                                $positions[$edition->getId()] = 0;
+                            }
+                            $page->setPosition($positions[$edition->getId()]++);
+                        }
+
+                        $page->setTitle($itemData['title']);
+                        $page->setTemplate('article1');
+                        $page->setCategory($category);
+                        $page->setUpdatedAt(new \DateTime());
+                        $this->setupPage($page, $itemData);
+
+                        if ($pagesNo % 2) {
+                            $page->setPublished(true);
+                        }
+
+                        $em->persist($page);
+
+                        $pagesNo++;
+                    }
+
+                }
+            }
+
+            $this->categories = array_merge($this->categories, $categories);
+        }
+
+        $em->flush();
+        $this->container->get('sonata.notification.backend')->saveAllAndFlush();//save notifications
+
+        $this->postFlush();
+        return;
+    }
+
+    protected function addSubcategories($parentCategory, $categoriesData)
+    {
+        $categories = array($parentCategory);
+        foreach ($categoriesData as $categoryData) {
+            $categories[] = $category = $this->addCategory($categoryData);
+            $category->setParent($parentCategory);
+        }
+
+        return $categories;
+    }
+
+    protected function addCategory($categoryData)
+    {
+        $category = new $this->categoryClass();
+        $category->setTitle($categoryData['title']);
+        $category->setDescription($categoryData['description']);
+
+        if (isset($categoryData['template'])) {
+            $category->setTemplate($categoryData['template']);
+        }
+
+        $this->em->persist($category);
+
+        return $category;
+    }
+
+    /**
+     * Returns an array with editions reference, if we have editions, an array with an empty element otherwise
+     * to be used when loading items
+     */
+    protected function getEditions()
+    {
+        if (!$this->hasReference('edition-0')) {
+            return array();
+        } else {
+            $editionsNo = $this->editionsNo;
+            $editions = array();
+            for ($i = 0; $i < $editionsNo; $i++) {
+                $editions[] = $this->getReference('edition-' . $i);
+            }
+            return $editions;
+        }
+    }
+
+    function getOrder()
+    {
+        return 5;
+    }
+}
