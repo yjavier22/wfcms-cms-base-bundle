@@ -1,0 +1,65 @@
+{
+    "name": "wfcms/cms-base-bundle",
+    "type": "library",
+    "description": "Base public bundle for CMS",
+    "keywords": [],
+    "homepage": "http://webflow.ro",
+    "authors": [
+        {
+            "name": "Gunther Konig",
+            "email": "gunther.konig@webflow.ro"
+        }
+    ],
+    "note": "!!!only include stable dependencies (and wf) to prevent composer update wfcms/cms-base-admin-bundle from updating the dev dependencies the unstable dependencies should be added in the projects' require",
+    "require": {
+        "symfony/symfony": "2.4.*",
+        "doctrine/orm": "2.4.2",
+        "doctrine/doctrine-bundle": "1.2.x",
+        "twig/extensions": "1.0.x",
+        "symfony/assetic-bundle": "2.3.x",
+        "symfony/swiftmailer-bundle": "2.3.x",
+        "symfony/monolog-bundle": "~2.4",
+        "sensio/distribution-bundle": "~2.3",
+        "sensio/framework-extra-bundle": "~3.0",
+        "sensio/generator-bundle": "~2.3",
+        "incenteev/composer-parameter-handler": "~2.0",
+        "vich/uploader-bundle": "0.9.x",
+        "jms/serializer-bundle": "0.11.x",
+        "jms/di-extra-bundle": "~1.4",
+        "knplabs/knp-menu-bundle": "1.1.x",
+        "avalanche123/imagine-bundle": "2.1.x",
+        "stof/doctrine-extensions-bundle": "1.1.x",
+        "genemu/form-bundle": "2.2.x",
+        "predis/predis": "0.8.x",
+        "presta/sitemap-bundle": "1.3.x",
+        "friendsofsymfony/user-bundle": "1.3.x",
+        "liip/doctrine-cache-bundle": "1.0.x",
+        "liip/cache-control-bundle": "1.0.x",
+        "snc/redis-bundle": "1.1.8",
+        "bcc/resque-bundle": "1.1.x",
+        "white-october/pagerfanta-bundle": "1.0.x",
+        "zendframework/zend-feed": "2.1.x",
+        "zendframework/zend-http": "2.1.x",
+        "zendframework/zend-servicemanager": "2.1.x",
+        "zendframework/zend-validator": "2.1.x",
+        "wfcms/cms-editor-bundle": "self.version",
+        "wfcms/cms-assets-bundle": "self.version",
+        "wfcms/cms-tracking-bundle": "self.version",
+        "wfro/common-bundle": "dev-master"
+    },
+    "suggest": {
+        "doctrine/doctrine-migrations-bundle": "dev-master",
+        "doctrine/doctrine-fixtures-bundle": "2.1.x@dev",
+        "white-october/pagerfanta-bundle": "2.1.x@dev",
+        "jms/di-extra-bundle": "1.3.x@dev",
+        "stof/doctrine-extensions-bundle": "1.1.x@dev",
+        "genemu/form-bundle": "2.2.x@dev",
+        "liip/cache-control-bundle": "1.1.x@dev",
+        "snc/redis-bundle": "2.1.x-dev"
+    },
+    "autoload": {
+        "psr-0": { "Wf\\Bundle\\CmsBaseBundle": "" }
+    },
+    "target-dir": "Wf/Bundle/CmsBaseBundle",
+    "minimum-stability": "dev"
+}

@@ -1,0 +1,14 @@
+{
+  "name": "wfcms-base",
+  "version": "0.0.0",
+  "authors": [
+    "Gunther Konig <gunther.konig@webflow.ro>"
+  ],
+  "license": "proprietary",
+  "private": true,
+  "dependencies": {
+    "jquery": "~1.8",
+    "bxslider-4": "~4.1.2",
+    "jasmine": "~2.0.0"
+  }
+}
